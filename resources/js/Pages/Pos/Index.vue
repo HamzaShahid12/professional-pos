@@ -8,6 +8,7 @@ import MoneyDisplay from '../../Components/Common/MoneyDisplay.vue';
 import AppIcon from '../../Components/Common/AppIcon.vue';
 import { useUiStore } from '../../Stores/ui';
 import { formatQty, humanize } from '../../Utils/format';
+import { priceCart } from '../../Utils/pricing';
 
 const props = defineProps({
     warehouses: Array, defaultWarehouse: Number, methods: Array, currency: Object, canDiscount: Boolean, canOverridePrice: Boolean,
@@ -20,30 +21,41 @@ const warehouseId = ref(props.resumed?.warehouse_id ?? props.defaultWarehouse);
 const customer = ref(props.resumed?.customer ?? null);
 const heldId = ref(props.resumed?.id ?? null);
 const cart = ref((props.resumed?.items ?? []).map((i) => ({ ...i, key: `${i.product_id}-${i.variant_id}`, allow_decimal: true })));
-const quote = ref(null);
+const serverQuote = ref(null);
 const errors = ref([]);
 
 const items = computed(() => cart.value.map((l) => ({
     product_id: l.product_id, variant_id: l.variant_id || null, quantity: l.quantity,
     unit_price: props.canOverridePrice ? l.unit_price : null, discount: props.canDiscount ? l.discount || null : null,
 })));
+
+// Totals appear instantly from the browser's own exact calculation. The server re-checks in the background (prices,
+// permissions, minimum price, sold-in-whole-units) and again when you press Pay, and its figures always win.
+const localQuote = computed(() => (cart.value.length ? priceCart(cart.value.map((l) => ({
+    quantity: l.quantity, unit_price: props.canOverridePrice ? l.unit_price : l.list_price ?? l.unit_price, discount: props.canDiscount ? l.discount : '', taxes: l.taxes,
+}))) : null));
+const quote = computed(() => (cart.value.length === 0 ? null : (localQuote.value ?? serverQuote.value)));
 const lineQuote = (i) => quote.value?.lines?.[i];
 const total = computed(() => quote.value?.total ?? '0.0000');
 
 let quoteTimer = null;
 let quoteSeq = 0;
+async function fetchQuote() {
+    const mine = ++quoteSeq;
+    try {
+        const { data } = await axios.post('/pos/quote', { warehouse_id: warehouseId.value, items: items.value });
+        if (mine === quoteSeq) { serverQuote.value = data; errors.value = []; }
+        return data;
+    } catch (e) {
+        if (mine === quoteSeq) { serverQuote.value = null; errors.value = messages(e); }
+        return null;
+    }
+}
 function requote() {
     clearTimeout(quoteTimer);
-    if (cart.value.length === 0) { quote.value = null; errors.value = []; return; }
-    quoteTimer = setTimeout(async () => {
-        const mine = ++quoteSeq;
-        try {
-            const { data } = await axios.post('/pos/quote', { warehouse_id: warehouseId.value, items: items.value });
-            if (mine === quoteSeq) { quote.value = data; errors.value = []; }
-        } catch (e) {
-            if (mine === quoteSeq) { quote.value = null; errors.value = messages(e); }
-        }
-    }, 250);
+    if (cart.value.length === 0) { serverQuote.value = null; errors.value = []; return; }
+    // Needed straight away only when the browser cannot price the cart itself (e.g. a resumed held sale).
+    quoteTimer = setTimeout(fetchQuote, localQuote.value ? 700 : 150);
 }
 watch(cart, requote, { deep: true });
 watch(warehouseId, () => { search(); });
@@ -64,7 +76,8 @@ function addProduct(p, v = null) {
     }
     cart.value.push({
         key, product_id: p.id, variant_id: v?.id ?? null, name: v ? `${p.name} · ${v.name}` : p.name, sku: v?.sku || p.sku,
-        quantity: '1', unit_price: v?.selling_price ?? p.selling_price, discount: '', allow_decimal: p.allow_decimal, unit: p.unit,
+        quantity: '1', unit_price: v?.selling_price ?? p.selling_price, list_price: v?.selling_price ?? p.selling_price, discount: '', allow_decimal: p.allow_decimal, unit: p.unit,
+        taxes: p.taxes ?? [], image_url: p.image_url ?? null,
     });
 }
 const removeLine = (i) => cart.value.splice(i, 1);
@@ -85,7 +98,7 @@ function search() {
             const { data } = await axios.get('/products/lookup', { params: { q: term.value, warehouse_id: warehouseId.value }, headers: { Accept: 'application/json' } });
             if (mine === searchSeq) results.value = data.data;
         } catch { if (mine === searchSeq) results.value = []; } finally { if (mine === searchSeq) searching.value = false; }
-    }, 200);
+    }, 120);
 }
 function onEnter() {
     // a barcode scanner types the code and presses Enter: add the exact match straight away
@@ -141,8 +154,13 @@ const tendered = computed(() => payments.reduce((s, p) => s + num(p.amount), 0))
 const difference = computed(() => Math.round((tendered.value - num(total.value)) * 10000) / 10000);
 const dp = computed(() => props.currency?.decimal_places ?? 2);
 
-function openPay() {
+async function openPay() {
     if (!quote.value) return;
+    // Confirm with the server before taking money: its total is the one that is charged.
+    clearTimeout(quoteTimer);
+    const confirmed = await fetchQuote();
+    if (!confirmed) return;
+    serverQuote.value = confirmed;
     payments.splice(0, payments.length, { method: 'cash', amount: total.value, reference: '' });
     done.value = null; payErrors.value = []; showPay.value = true;
 }
@@ -156,7 +174,7 @@ async function completeSale() {
             payments: payments.filter((p) => num(p.amount) > 0).map((p) => ({ method: p.method, amount: p.amount, reference: p.reference || null })),
         });
         done.value = data;
-        cart.value = []; quote.value = null;
+        cart.value = []; serverQuote.value = null;
     } catch (e) { payErrors.value = messages(e); } finally { processing.value = false; }
 }
 function newSale() { showPay.value = false; done.value = null; clearCart(); search(); }
@@ -178,12 +196,14 @@ const creditAvailable = computed(() => customer.value ? Math.max(0, num(customer
             <div class="pos-grid">
                 <div v-for="p in results" :key="p.id" class="card pos-product">
                     <button v-if="!p.has_variants" type="button" class="pos-tile" @click="addProduct(p)">
+                        <span class="pos-thumb"><img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy"><span v-else>{{ p.name.slice(0, 1).toUpperCase() }}</span></span>
                         <strong>{{ p.name }}</strong>
                         <span class="muted mono">{{ p.sku }}</span>
                         <span><MoneyDisplay :amount="p.selling_price" :currency="currency" /></span>
                         <span v-if="p.track_inventory" :class="Number(p.on_hand) <= 0 ? 'error-text' : 'muted'">{{ formatQty(p.on_hand) }} {{ p.unit }} in stock</span>
                     </button>
                     <div v-else class="pos-tile">
+                        <span class="pos-thumb"><img v-if="p.image_url" :src="p.image_url" :alt="p.name" loading="lazy"><span v-else>{{ p.name.slice(0, 1).toUpperCase() }}</span></span>
                         <strong>{{ p.name }}</strong>
                         <button v-for="v in p.variants" :key="v.id" type="button" class="btn btn-secondary btn-sm" style="justify-content: space-between" @click="addProduct(p, v)">
                             <span>{{ v.name }}</span><span><MoneyDisplay :amount="v.selling_price ?? p.selling_price" :currency="currency" /> · {{ formatQty(v.on_hand) }}</span>
@@ -299,7 +319,9 @@ const creditAvailable = computed(() => customer.value ? Math.max(0, num(customer
 <style scoped>
 .pos { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 16px; align-items: start; }
 .pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-.pos-product { padding: 0; }
+.pos-product { padding: 0; overflow: hidden; }
+.pos-thumb { width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; background: var(--primary-50); color: var(--primary); display: grid; place-items: center; font-size: 28px; font-weight: 700; overflow: hidden; }
+.pos-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .pos-tile { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 12px; text-align: left; background: none; border: 0; color: inherit; cursor: pointer; }
 .pos-cart { position: sticky; top: 76px; padding: 0; display: flex; flex-direction: column; max-height: calc(100vh - 100px); }
 .pos-cart-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; }

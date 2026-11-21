@@ -32,6 +32,6 @@ class Business extends Model
 
     public function getLogoUrlAttribute(): ?string
     {
-        return $this->logo_path ? Storage::disk('public')->url($this->logo_path) : null;
+        return $this->logo_path ? \App\Support\PublicUrl::of($this->logo_path) : null;
     }
 }

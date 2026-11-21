@@ -4,11 +4,13 @@ import AppIcon from '../Components/Common/AppIcon.vue';
 
 <template>
     <div class="auth-wrap">
-        <div class="auth-side">
-            <div class="row" style="margin-bottom: 28px"><span class="brand-mark" style="background: rgba(255,255,255,.18)"><AppIcon name="building" /></span><strong>Professional POS</strong></div>
-            <h1>Run every branch from one place.</h1>
-            <p style="max-width: 420px; opacity: .85">Retail POS, inventory, multi-currency sales and double-entry accounting for growing shops.</p>
+        <div class="auth-card">
+            <div class="auth-brand">
+                <span class="brand-mark"><AppIcon name="building" :size="20" /></span>
+                <div><strong>Professional POS</strong><div class="muted" style="font-size: 12px">Retail, inventory and accounting</div></div>
+            </div>
+            <slot />
         </div>
-        <div class="auth-form"><div class="auth-box"><slot /></div></div>
+        <p class="auth-foot">&copy; {{ new Date().getFullYear() }} Professional POS</p>
     </div>
 </template>

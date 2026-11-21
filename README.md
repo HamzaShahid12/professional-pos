@@ -345,6 +345,7 @@ No customer or supplier ageing (payments are not allocated to individual invoice
 - **XLSX export**: `GET /reports/{type}/export?format=xlsx` (CSV remains the default). Numbers are real numbers; text is forced to text so it cannot become a formula.
 - **Report API**: `GET /api/v1/reports` and `/api/v1/reports/{type}`.
 - **`php artisan pos:verify-books [--business=ID]`**: checks the trial balance and the three reconciliations for every business; exit code 1 on any difference. Schedule it nightly (see `docs/DEPLOYMENT.md`).
+- **Fast POS totals**: the till prices the cart in the browser (`resources/js/Utils/pricing.js`, exact integer maths, same tax rules as `TaxCalculator`, covered by Vitest), so totals update instantly. The server re-checks in the background and when Pay is pressed; its figures are the ones charged and stored.
 - Docs: `docs/DEPLOYMENT.md`, `docs/API.md`, `docs/SECURITY.md`.
 - Tests: `tests/Feature/Phase10Test.php`.
 

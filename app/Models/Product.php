@@ -78,7 +78,7 @@ class Product extends Model
     {
         $image = $this->relationLoaded('primaryImage') ? $this->primaryImage : $this->primaryImage()->first();
 
-        return $image ? Storage::disk('public')->url($image->path) : null;
+        return $image ? \App\Support\PublicUrl::of($image->path) : null;
     }
 
     /** Name, SKU or barcode. Exact barcode/SKU matches are what a scanner sends. */

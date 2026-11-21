@@ -69,7 +69,7 @@ class ProductController extends Controller
     {
         $this->authorize('viewAny', Product::class);
 
-        $items = Product::query()->with(['taxes', 'unit', 'variants' => fn ($q) => $q->where('is_active', true)])
+        $items = Product::query()->with(['taxes', 'unit', 'primaryImage', 'variants' => fn ($q) => $q->where('is_active', true)])
             ->where('is_active', true)
             ->when($request->boolean('stockable'), fn ($q) => $q->where('track_inventory', true))
             ->search($request->query('q'))
@@ -89,7 +89,7 @@ class ProductController extends Controller
                 'id' => $p->id, 'name' => $p->name, 'sku' => $p->sku, 'barcode' => $p->barcode,
                 'selling_price' => (string) $p->selling_price, 'purchase_price' => (string) $p->purchase_price,
                 'track_inventory' => $p->track_inventory, 'track_expiry' => $p->track_expiry, 'has_variants' => $p->has_variants,
-                'unit' => $p->unit?->short_name, 'allow_decimal' => (bool) $p->unit?->allow_decimal,
+                'image_url' => $p->image_url, 'unit' => $p->unit?->short_name, 'allow_decimal' => (bool) $p->unit?->allow_decimal,
                 'on_hand' => $p->has_variants ? null : ($onHand[$p->id.'-0'] ?? '0.0000'),
                 'variants' => $p->variants->map(fn ($v) => [
                     'id' => $v->id, 'name' => $v->name, 'sku' => $v->sku, 'barcode' => $v->barcode,
@@ -209,7 +209,7 @@ class ProductController extends Controller
             'category' => $p->category?->name, 'brand' => $p->brand?->name,
             'unit' => $p->unit ? $p->unit->name.' ('.$p->unit->short_name.')' : null,
             'variants' => $p->variants->map->only('id', 'name', 'sku', 'barcode', 'purchase_price', 'selling_price', 'wholesale_price', 'is_active')->values(),
-            'images' => $p->images->map(fn ($i) => ['id' => $i->id, 'url' => \Illuminate\Support\Facades\Storage::disk('public')->url($i->path), 'is_primary' => $i->is_primary])->values(),
+            'images' => $p->images->map(fn ($i) => ['id' => $i->id, 'url' => \App\Support\PublicUrl::of($i->path), 'is_primary' => $i->is_primary])->values(),
         ];
     }
 }

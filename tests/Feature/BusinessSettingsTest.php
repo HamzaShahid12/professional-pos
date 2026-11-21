@@ -82,7 +82,7 @@ class BusinessSettingsTest extends TestCase
         $this->makeBranch($a, 'EXTRA');
 
         $this->actingAs($ownerA)->get('/dashboard')->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Dashboard/Index')->where('stats.branches', 2)->where('stats.users', 1)->where('stats.currencies', 1));
+            ->assertInertia(fn ($page) => $page->component('Dashboard/Index')->where('stats.branches', 2)->where('stats.users', 1)->where('stats.currencies', 1)->has('sales_chart.labels', 14));
     }
 
     public function test_activity_log_records_business_scoped_events(): void

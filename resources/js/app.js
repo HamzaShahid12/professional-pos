@@ -22,5 +22,5 @@ createInertiaApp({
             .use(createPinia())
             .mount(el);
     },
-    progress: { color: '#2459d6' },
+    progress: { color: '#5b4bdb' },
 });

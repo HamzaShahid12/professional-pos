@@ -17,8 +17,8 @@ const data = computed(() => ({
     labels: props.chart.labels,
     datasets: props.chart.datasets.map((d) => ({
         ...d,
-        backgroundColor: props.chart.type === 'line' ? `${css('--primary', '#2459d6')}22` : css('--primary', '#2459d6'),
-        borderColor: css('--primary', '#2459d6'),
+        backgroundColor: props.chart.type === 'line' ? `${css('--primary', '#5b4bdb')}22` : css('--primary', '#2459d6'),
+        borderColor: css('--primary', '#5b4bdb'),
         borderWidth: props.chart.type === 'line' ? 2 : 0,
         borderRadius: 4,
         fill: props.chart.type === 'line',

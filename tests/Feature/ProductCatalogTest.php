@@ -276,6 +276,10 @@ class ProductCatalogTest extends TestCase
 
         $id = $response->json('data.id');
         $this->assertNotNull($response->json('data.image_url'));
+        // Relative to the current host, so it still loads under php artisan serve or a different APP_URL.
+        $this->assertStringStartsWith('/storage/products/', $response->json('data.image_url'));
+        $this->actingAs($this->owner)->getJson('/products/lookup?q='.urlencode($response->json('data.name')))
+            ->assertOk()->assertJsonPath('data.0.image_url', $response->json('data.image_url'));
         $images = $this->inBusiness($this->business, fn () => ProductImage::where('product_id', $id)->orderBy('id')->get());
         $this->assertCount(2, $images);
         $this->assertTrue($images[0]->is_primary);

@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
@@ -10,7 +11,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 /** Exports in the same column layout the importer reads, so an export can be edited and re-imported. */
 class ProductsExport implements FromQuery, WithHeadings, WithMapping
 {
-    public function query()
+    public function query(): Builder
     {
         return Product::query()->with(['category', 'brand', 'unit', 'taxes'])->orderBy('name');
     }

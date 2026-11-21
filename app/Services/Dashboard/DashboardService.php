@@ -12,6 +12,7 @@ use App\Support\InventoryAccess;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\Inventory\InventoryQueryService;
+use App\Services\Reports\ReportService;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\DB;
 
@@ -36,7 +37,16 @@ class DashboardService
             $today = ['count' => (int) $row->n, 'total' => (string) $row->total];
         }
 
+        // Last 14 days of net sales, the same figures as the Sales by day report.
+        $chart = null;
+        if ($user->can('sales.view')) {
+            $reports = app(ReportService::class);
+            $to = $reports->today();
+            $chart = $reports->run('sales_daily', $user, ['from' => now($reports->tz())->subDays(13)->toDateString(), 'to' => $to])['chart'];
+        }
+
         return [
+            'sales_chart' => $chart,
             'sales_today' => $today,
             'accounts' => [
                 'receivable' => $user->can('customers.manage') ? $money(Customer::class) : null,
