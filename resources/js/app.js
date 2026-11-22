@@ -8,10 +8,12 @@ const appName = import.meta.env.VITE_APP_NAME || 'Professional POS';
 
 createInertiaApp({
     title: (title) => (title ? `${title} · ${appName}` : appName),
-    resolve: (name) => {
-        const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
-        const page = pages[`./Pages/${name}.vue`];
-        if (!page) throw new Error(`Unknown page: ${name}`);
+    // Each page is its own small file, loaded when first visited (the charts library is only fetched for pages that draw charts).
+    resolve: async (name) => {
+        const pages = import.meta.glob('./Pages/**/*.vue');
+        const load = pages[`./Pages/${name}.vue`];
+        if (!load) throw new Error(`Unknown page: ${name}`);
+        const page = await load();
         // Auth pages bring their own layout; everything else uses the application shell.
         page.default.layout = page.default.layout === undefined ? AppLayout : page.default.layout;
         return page;

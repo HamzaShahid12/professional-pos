@@ -14,6 +14,16 @@ export default defineConfig({
             },
         }),
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: (id) => {
+                    if (id.includes('chart.js') || id.includes('vue-chartjs')) return 'charts';
+                    if (id.includes('node_modules')) return 'vendor';
+                },
+            },
+        },
+    },
     resolve: {
         alias: { '@': '/resources/js' },
     },

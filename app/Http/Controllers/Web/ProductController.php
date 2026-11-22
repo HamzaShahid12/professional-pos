@@ -97,7 +97,8 @@ class ProductController extends Controller
                     'selling_price' => $v->selling_price === null ? null : (string) $v->selling_price,
                     'on_hand' => $onHand[$p->id.'-'.$v->id] ?? '0.0000',
                 ])->values(),
-                'taxes' => $p->taxes->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'rate' => (string) $t->rate, 'is_inclusive' => $t->is_inclusive])->values(),
+                // Only active taxes apply at the till, exactly as the server prices the sale.
+                'taxes' => $p->taxes->where('is_active', true)->map(fn ($t) => ['id' => $t->id, 'name' => $t->name, 'rate' => (string) $t->rate, 'is_inclusive' => $t->is_inclusive])->values(),
             ]);
 
         return response()->json(['data' => $items]);

@@ -54,17 +54,18 @@ class ProductService
             $oldPrices = $product->only(Product::PRICE_FIELDS);
 
             $product->fill(collect($data)->only(self::ATTRIBUTES)->all());
-            if (array_key_exists('variants', $data)) {
+            if (! empty($data['sync_relations']) || array_key_exists('variants', $data)) {
                 $product->has_variants = ! empty($data['variants']);
             }
             $this->guardStockStructure($product);
             $product->save();
 
-            if (array_key_exists('tax_ids', $data)) {
-                $product->taxes()->sync($data['tax_ids']);
+            $syncAll = ! empty($data['sync_relations']);
+            if ($syncAll || array_key_exists('tax_ids', $data)) {
+                $product->taxes()->sync($data['tax_ids'] ?? []);
             }
-            if (array_key_exists('variants', $data)) {
-                $this->syncVariants($product, $data['variants'], $by, 'update');
+            if ($syncAll || array_key_exists('variants', $data)) {
+                $this->syncVariants($product, $data['variants'] ?? [], $by, 'update');
             }
             $this->recordPrices($product, null, $oldPrices, $product->only(Product::PRICE_FIELDS), $by, 'update');
             $this->removeImages($product, $data['remove_image_ids'] ?? []);

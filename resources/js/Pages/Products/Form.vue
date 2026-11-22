@@ -22,6 +22,7 @@ const form = useForm({
     category_id: p?.category_id ?? '', brand_id: p?.brand_id ?? '', unit_id: p?.unit_id ?? props.units.find((u) => u.short_name === 'pcs')?.id ?? '',
     purchase_price: dec(p?.purchase_price), selling_price: dec(p?.selling_price), wholesale_price: dec(p?.wholesale_price), min_selling_price: dec(p?.min_selling_price),
     min_stock: dec(p?.min_stock) || '0',
+    sync_relations: true,
     tax_ids: [...(p?.tax_ids ?? [])],
     is_active: p?.is_active ?? true, track_inventory: p?.track_inventory ?? true, track_expiry: p?.track_expiry ?? false,
     variants: (p?.variants ?? []).map((v) => ({ id: v.id, name: v.name, sku: v.sku, barcode: v.barcode ?? '', purchase_price: dec(v.purchase_price), selling_price: dec(v.selling_price), wholesale_price: dec(v.wholesale_price), is_active: v.is_active })),

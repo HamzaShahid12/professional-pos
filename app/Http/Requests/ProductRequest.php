@@ -40,6 +40,9 @@ class ProductRequest extends FormRequest
             'wholesale_price' => ['nullable', ...$price],
             'min_selling_price' => ['nullable', ...$price, 'lte:selling_price'],
             'min_stock' => ['nullable', 'numeric', 'min:0', 'max:99999999999999'],
+            // The web form is sent as multipart, which drops empty arrays. It sends this flag so that unticking every
+            // tax (or removing every variant) is understood as "none" and not as "unchanged".
+            'sync_relations' => ['sometimes', 'boolean'],
             'tax_ids' => ['sometimes', 'array'],
             'tax_ids.*' => ['integer', $own('taxes')],
             'is_active' => ['sometimes', 'boolean'],
