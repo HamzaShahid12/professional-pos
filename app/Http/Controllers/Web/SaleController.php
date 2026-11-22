@@ -70,6 +70,7 @@ class SaleController extends Controller
             'business' => $this->tenant->business()?->only('name', 'legal_name', 'address', 'phone', 'email', 'tax_number'),
             'width' => (string) $this->settings->get('sales.receipt_width', '80'),
             'footer' => $this->settings->get('sales.invoice_footer'),
+            'developer' => ['name' => config('pos.developer_name'), 'name2' => config('pos.developer_name2'), 'phone' => config('pos.developer_phone')],
         ]);
     }
 
